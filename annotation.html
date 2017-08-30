@@ -1,0 +1,191 @@
+<html>
+<body>
+
+<form id="form1" runat="server">
+    <div>
+        <input type='file' id="images" multiple="true"/>
+    </div>
+    <div>
+        <input type='button' id="prev" value="prev"/>
+        <input type='button' id="next" value="next"/>
+        
+        <input type='button' id="clear" value="clear"/>
+        <input type='button' id="save" value="save"/>
+    <div>
+    <div style="position: relative;">
+        <canvas id="image" style="position: absolute; left: 0; top: 0; z-index: 0;"></canvas>
+        <canvas id="bbox" style="position: absolute; left: 0; top: 0; z-index: 1;"></canvas>
+    </div>
+    <div>
+    
+    </div>
+</form>
+
+<script
+			  src="js/jquery-3.2.1.slim.min.js"
+			  integrity="sha256-k2WSCIexGzOj3Euiig+TlR8gA0EmPjuc79OEeY5L45g="
+			  crossorigin="anonymous"></script>
+<script type="text/javascript">
+
+    // the canvas
+    var canvas0 = document.getElementById("image");
+    var context0 = canvas0.getContext("2d");
+    
+    var canvas1 = document.getElementById("bbox");
+    var context1 = canvas1.getContext("2d");
+    
+    //var startX, endX, startY, endY;
+    var startX, startY;
+    var mouseIsDown = 0;
+    
+    canvas1.addEventListener("mousedown", mouseDown, false);
+    canvas1.addEventListener("mousemove", mouseMove, false);
+    canvas1.addEventListener("mouseup", mouseUp, false);
+    
+    // image files
+    var files = [];
+    var idx = 0;
+    
+    // store bounding box
+    var boxes = {};
+    
+    function loadImage() {
+        createImageBitmap(files[idx])
+        .then(response => {
+            canvas0.width = response.width;
+            canvas0.height = response.height;
+            
+            canvas1.width = response.width;
+            canvas1.height = response.height;
+            
+            context0.drawImage(response, 0, 0);
+            context1.clearRect(0,0,canvas1.width,canvas1.height);
+            drawBBox();
+        });
+    }
+    
+    
+    function readURL(input) {
+        if (input.files && input.files[0]) {        
+            
+            // reset index and bounding box
+            idx = 0;
+            boxes = {}
+            
+            files = input.files;
+            loadImage();
+        }
+    }
+    
+    $("#images").change(function(){
+        readURL(this);
+    });
+    
+    $("#prev").click(function(){
+        if (idx > 0)
+        {
+            idx = idx - 1;            
+            loadImage();
+        }
+    });
+    
+    $("#next").click(function(){
+        if (idx < (files.length - 1))
+        {
+            idx = idx + 1;
+            loadImage();
+        }
+    });
+    
+    $("#save").click(function(){
+        // generate text
+        var str = '';
+        for (var p in boxes) {
+            if (boxes.hasOwnProperty(p) && boxes[p] != null) {
+                str += p + ',';
+                str += boxes[p][0] + ',' + boxes[p][1] + ',' + boxes[p][2] + ',' + boxes[p][3] + '\n';
+            }
+        }
+        // prompt user download
+        var element = document.createElement('a');
+        element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(str));
+        element.setAttribute('download', 'annotation.txt');
+        element.style.display = 'none';
+        document.body.appendChild(element);
+        element.click();
+        document.body.removeChild(element);
+    });
+    
+    $("#clear").click(function(){
+        boxes[files[idx].name] = null;
+        context1.clearRect(0, 0, canvas1.width, canvas1.height);
+    });
+    
+    function mouseUp(e) {
+        if (mouseIsDown !== 0) {
+            mouseIsDown = 0;
+            //var pos = getMousePos(canvas1, e);
+            //endX = pos.x;
+            //endY = pos.y;
+            //update on mouse-up
+            //drawBBox();
+        }
+    }
+
+    function mouseDown(e) {
+        mouseIsDown = 1;
+        var pos = getMousePos(canvas1, e);
+        //startX = endX = pos.x;
+        //startY = endY = pos.y;
+        startX = pos.x;
+        startY = pos.y;
+    }
+
+    function mouseMove(e) {
+        if (mouseIsDown !== 0) {
+            var pos = getMousePos(canvas1, e);
+            //endX = pos.x;
+            //endY = pos.y;
+            
+            // creating a square
+            var w = pos.x - startX;
+            var h = pos.y - startY;
+            var offsetX = (w < 0) ? w : 0;
+            var offsetY = (h < 0) ? h : 0;
+            var width = Math.abs(w);
+            var height = Math.abs(h);
+            
+            // save the bounding box
+            boxes[files[idx].name] = [startX + offsetX, startY + offsetY, width, height]
+        
+            drawBBox();
+        }
+    }
+
+    function drawBBox() {
+        var bbox = boxes[files[idx].name];
+        
+        if (bbox != null) {
+            context1.strokeStyle = '#00FF00';
+            context1.lineWidth = 3;
+            context1.clearRect(0, 0, canvas1.width, canvas1.height);
+            
+            context1.strokeRect(bbox[0], bbox[1], bbox[2], bbox[3]);
+        }
+
+    }
+
+    function getMousePos(canvas, evt) {
+        //var rect = canvas.getBoundingClientRect();
+        return {
+            x: evt.offsetX,//evt.clientX - rect.left,
+            y: evt.offsetY//evt.clientY - rect.top
+        };
+    }
+    
+</script>
+
+
+
+</body>
+</html>
